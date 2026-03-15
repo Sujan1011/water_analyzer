@@ -12,10 +12,17 @@ class ImageProcessor:
             'LAB': None
         }
     
-    def preprocess_image(self, image_path):
-        """Load and preprocess image"""
-        # Load image
-        img = cv2.imread(image_path)
+    def preprocess_image(self, image_input):
+        """Load and preprocess image.
+
+        The input may be a file path (string) or an already-loaded OpenCV image (numpy array).
+        """
+        # Load image from file if a path is provided
+        if isinstance(image_input, str):
+            img = cv2.imread(image_input)
+        else:
+            img = image_input
+
         if img is None:
             return None
         

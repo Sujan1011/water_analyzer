@@ -9,7 +9,6 @@ from datetime import datetime
 import os
 import sys
 import csv
-import tempfile
 from io import StringIO
 
 # Add the current directory to path for imports
@@ -18,7 +17,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from image_processor import ImageProcessor
 from ml_classifier import ColorClassifier
 
-app = Flask(__name__)
+# Create Flask app and ensure template folder is resolved relative to this file.
+base_dir = os.path.dirname(os.path.abspath(__file__))
+templates_dir = os.path.join(base_dir, "templates")
+app = Flask(__name__, template_folder=templates_dir)
 
 class WaterTestWebApp:
     def __init__(self):
@@ -93,26 +95,18 @@ class WaterTestWebApp:
         # Decode base64 image
         if ',' in image_data:
             image_data = image_data.split(',')[1]
-        
+
         image_bytes = base64.b64decode(image_data)
-        image = Image.open(io.BytesIO(image_bytes))
-        
-        # Convert to OpenCV format
-        opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        
-        # Save temporarily for processing (use system temp dir to avoid write restrictions)
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            temp_path = tmp.name
-        cv2.imwrite(temp_path, opencv_image)
-        
+
+        # Read image directly from bytes (avoid relying on file write permissions)
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        opencv_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if opencv_image is None:
+            return None, None
+
         # Process with image processor
-        try:
-            processed = self.image_processor.preprocess_image(temp_path)
-        finally:
-            # Clean up
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-        
+        processed = self.image_processor.preprocess_image(opencv_image)
+
         return processed, opencv_image
     
     def analyze_color(self, processed_image, test_type):
