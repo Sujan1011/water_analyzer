@@ -1,12 +1,20 @@
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-import joblib
-import os
+# Lazy load dependencies for Vercel serverless compatibility
+def _get_numpy():
+    import numpy as np
+    return np
+
+def _get_sklearn():
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.preprocessing import StandardScaler
+    return RandomForestClassifier, StandardScaler
+
+def _get_joblib():
+    import joblib
+    return joblib
 
 class ColorClassifier:
     def __init__(self):
+        RandomForestClassifier, StandardScaler = _get_sklearn()
         self.classifier = RandomForestClassifier(n_estimators=100, random_state=42)
         self.scaler = StandardScaler()
         self.is_trained = False
@@ -27,6 +35,8 @@ class ColorClassifier:
     
     def extract_features(self, rgb_values):
         """Extract features from RGB values for classification"""
+        np = _get_numpy()
+        
         r, g, b = rgb_values
         
         # Normalize RGB values
@@ -54,6 +64,8 @@ class ColorClassifier:
     
     def generate_training_data(self, n_samples=1000):
         """Generate synthetic training data for color classification"""
+        np = _get_numpy()
+        
         X = []
         y = []
         
@@ -131,6 +143,8 @@ class ColorClassifier:
     
     def train(self):
         """Train the classifier"""
+        from sklearn.model_selection import train_test_split
+        
         print("Generating training data...")
         X, y = self.generate_training_data(n_samples=1500)
         
@@ -162,6 +176,8 @@ class ColorClassifier:
     
     def predict_color(self, rgb_values):
         """Predict color class from RGB values"""
+        np = _get_numpy()
+        
         if not self.is_trained:
             raise ValueError("Classifier not trained. Call train() first.")
         
@@ -213,6 +229,8 @@ class ColorClassifier:
     
     def save_model(self, filepath):
         """Save trained model to disk"""
+        joblib = _get_joblib()
+        
         if not self.is_trained:
             raise ValueError("No trained model to save")
         
@@ -227,6 +245,8 @@ class ColorClassifier:
     
     def load_model(self, filepath):
         """Load trained model from disk"""
+        joblib = _get_joblib()
+        
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Model file {filepath} not found")
         
