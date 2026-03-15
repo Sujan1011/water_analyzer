@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 import sys
 import csv
+import tempfile
 from io import StringIO
 
 # Add the current directory to path for imports
@@ -99,16 +100,18 @@ class WaterTestWebApp:
         # Convert to OpenCV format
         opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         
-        # Save temporarily for processing
-        temp_path = "temp_image.jpg"
+        # Save temporarily for processing (use system temp dir to avoid write restrictions)
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            temp_path = tmp.name
         cv2.imwrite(temp_path, opencv_image)
         
         # Process with image processor
-        processed = self.image_processor.preprocess_image(temp_path)
-        
-        # Clean up
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        try:
+            processed = self.image_processor.preprocess_image(temp_path)
+        finally:
+            # Clean up
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
         
         return processed, opencv_image
     
