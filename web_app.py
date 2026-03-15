@@ -1,8 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file, Response
-import cv2
-import numpy as np
 import base64
-from PIL import Image
 import io
 import json
 from datetime import datetime
@@ -11,16 +8,37 @@ import sys
 import csv
 from io import StringIO
 
-# Add the current directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Lazy load heavy dependencies for Vercel serverless compatibility
+def _get_cv2():
+    import cv2
+    return cv2
 
-from image_processor import ImageProcessor
-from ml_classifier import ColorClassifier
+def _get_numpy():
+    import numpy
+    return numpy
 
-# Create Flask app and ensure template folder is resolved relative to this file.
-base_dir = os.path.dirname(os.path.abspath(__file__))
-templates_dir = os.path.join(base_dir, "templates")
-app = Flask(__name__, template_folder=templates_dir)
+def _get_PIL():
+    from PIL import Image
+    return Image
+
+import sys
+import os
+
+# Vercel-safe imports - add current directory
+if not '' in sys.path:
+    sys.path.insert(0, '')
+
+try:
+    from image_processor import ImageProcessor
+    from ml_classifier import ColorClassifier
+except ImportError:
+    # Fallback for Vercel cold starts
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from image_processor import ImageProcessor
+    from ml_classifier import ColorClassifier
+
+# Flask app with relative templates (Vercel serves from project root)
+app = Flask(__name__, template_folder='templates')
 
 class WaterTestWebApp:
     def __init__(self):
@@ -92,6 +110,9 @@ class WaterTestWebApp:
         
     def process_image(self, image_data):
         """Process base64 encoded image"""
+        np = _get_numpy()
+        cv2 = _get_cv2()
+        
         # Decode base64 image
         if ',' in image_data:
             image_data = image_data.split(',')[1]
@@ -145,7 +166,7 @@ class WaterTestWebApp:
         
         return {
             'color_name': color_name,
-            'rgb': dominant_color.tolist() if isinstance(dominant_color, np.ndarray) else dominant_color,
+            'rgb': dominant_color.tolist() if hasattr(dominant_color, 'tolist') else dominant_color,
             'hex': '#{:02x}{:02x}{:02x}'.format(int(dominant_color[0]), int(dominant_color[1]), int(dominant_color[2])),
             'color_distribution': color_distribution,
             'statistics': statistics,
@@ -682,6 +703,8 @@ class WaterTestWebApp:
     
     def find_closest_color(self, rgb_values, reference, test_type=None):
         """Find closest color in reference with improved matching"""
+        import numpy as np
+        
         min_distance = float('inf')
         best_match = None
         
@@ -783,6 +806,8 @@ def index():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
+    import numpy as np
+    
     try:
         data = request.json
         before_image = data.get('before_image')
@@ -1102,6 +1127,33 @@ def retrain_model():
         return jsonify({'success': True, 'message': 'Model retrained successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def vercel_handler(request):
+    """Vercel Serverless Function Handler for Flask App"""
+    try:
+        from flask import Request as FlaskRequest
+        from werkzeug.wrappers import Response
+        
+        # Create Flask request object from Vercel event
+        flask_request = FlaskRequest(request['headers'], request['body'], request['method'], request['path'])
+        flask_request.environ['werkzeug.request'] = flask_request
+        
+        # Get response from Flask app
+        response = app(flask_request)
+        
+        # Convert to Vercel response format
+        return {
+            'statusCode': response.status_code,
+            'headers': dict(response.headers),
+            'body': response.get_data(as_text=True)
+        }
+    except Exception as e:
+        import traceback
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'text/plain'},
+            'body': f'Server Error: {str(e)}\n{traceback.format_exc()}'
+        }
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=False, port=5000)

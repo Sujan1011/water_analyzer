@@ -1,8 +1,15 @@
-import cv2
-import numpy as np
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
-from scipy import stats
+# Lazy load heavy dependencies for Vercel serverless compatibility
+def _get_cv2():
+    import cv2
+    return cv2
+
+def _get_numpy():
+    import numpy as np
+    return np
+
+def _get_sklearn():
+    from sklearn.cluster import KMeans
+    return KMeans
 
 class ImageProcessor:
     def __init__(self):
@@ -17,6 +24,9 @@ class ImageProcessor:
 
         The input may be a file path (string) or an already-loaded OpenCV image (numpy array).
         """
+        cv2 = _get_cv2()
+        np = _get_numpy()
+        
         # Load image from file if a path is provided
         if isinstance(image_input, str):
             img = cv2.imread(image_input)
@@ -48,6 +58,9 @@ class ImageProcessor:
     
     def detect_test_strip(self, image):
         """Detect the test strip region in the image"""
+        cv2 = _get_cv2()
+        np = _get_numpy()
+        
         if image is None:
             return None
         
@@ -145,6 +158,8 @@ class ImageProcessor:
     
     def enhance_region(self, region):
         """Enhance the test region for better color analysis"""
+        cv2 = _get_cv2()
+        
         if region is None or region.size == 0:
             return region
         
@@ -165,6 +180,9 @@ class ImageProcessor:
     
     def analyze_color_distribution(self, region, n_colors=3):
         """Analyze color distribution using K-means clustering"""
+        KMeans = _get_sklearn()
+        np = _get_numpy()
+        
         if region is None or region.size == 0:
             return []
         
@@ -202,6 +220,9 @@ class ImageProcessor:
     
     def calculate_color_statistics(self, region):
         """Calculate statistical properties of colors in the region"""
+        cv2 = _get_cv2()
+        np = _get_numpy()
+        
         if region is None or region.size == 0:
             return None
         
@@ -234,6 +255,9 @@ class ImageProcessor:
     
     def compare_images(self, img1, img2):
         """Compare two images and calculate differences"""
+        cv2 = _get_cv2()
+        np = _get_numpy()
+        
         if img1 is None or img2 is None:
             return None
         
@@ -277,6 +301,8 @@ class ImageProcessor:
     
     def compare_histograms(self, img1, img2):
         """Compare color histograms of two images"""
+        cv2 = _get_cv2()
+        
         hist_similarity = 0
         
         for i in range(3):  # For each channel
@@ -295,6 +321,9 @@ class ImageProcessor:
     
     def detect_color_change_region(self, before, after):
         """Detect regions where color changed significantly"""
+        cv2 = _get_cv2()
+        np = _get_numpy()
+        
         if before is None or after is None:
             return None
         
@@ -366,6 +395,9 @@ class ImageProcessor:
     
     def extract_color_features(self, region):
         """Extract comprehensive color features for ML"""
+        cv2 = _get_cv2()
+        np = _get_numpy()
+        
         if region is None or region.size == 0:
             return None
         
